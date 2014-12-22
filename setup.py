@@ -37,7 +37,7 @@ setup(
     description = 'gevent multi process & multi greenlet',
     long_description = read_files('README.md', ),
     license = 'MIT',
-    author = 'yuxin',
+    author = 'gf0842wf',
     author_email = 'gf0842wf@gmail.com',
     url = 'https://github.com/gf0842wf/pglet',
     keywords = ['python', 'gevent', 'multiprocessing'],
