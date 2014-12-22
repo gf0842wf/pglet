@@ -24,7 +24,7 @@ Example
         ppool = PPool(2)                       # 开启2个子进程
         ppool.init()                           # 初始化
 
-        print ppool.spawn_block(foo, "abc")    # 任务会均匀分配到子进程中庸协程执行(返回结果)
+        print ppool.spawn_block(foo, "abc")    # 任务会均匀分配到子进程中用协程执行(返回结果)
         print ppool.spawn_unblock(foo, "def")  # 不返回结果,打印出None
         
         gevent.wait()                          # 主进程协程等待
