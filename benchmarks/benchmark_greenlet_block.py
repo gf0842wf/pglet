@@ -10,7 +10,7 @@ def fetch_20(url):
     return urllib2.urlopen(url).read(20)
 
 t0 = time.time()
-gevent.joinall([ gevent.spawn(fetch_20, url) for url in urls ])
+[ gevent.spawn(fetch_20, url).get() for url in urls ]
 print time.time() - t0
 
 gevent.wait()
