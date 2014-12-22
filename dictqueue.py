@@ -49,21 +49,21 @@ class DictQueue(object):
 
 	def put(self, key, value, override=True, timeout=None):
 		"""
-		@param override: 是否覆写(针对值存在情况,值不存在情况不用管后面参数,直接存进去), False-不覆写一直阻塞,直到timeout才开始覆写, True-直接覆写
+		@param override: 是否覆写(针对值存在情况,值不存在情况不用管后面参数,直接存进去), 
+						False-不覆写一直阻塞,直到timeout才开始覆写, 
+						True-直接覆写
 		"""
 		self.not_full.acquire()
 		try:
-			if key in self.dictqueue:
-				if not override:
-					if timeout is None:
-						raise Full
-					else:
-						endtime = time.time() + timeout
-						while key in self.dictqueue:
-							remaining = endtime - time.time()
-							if remaining <= 0.0:
-								break
-							self.not_full.wait(remaining)
+			if (key in self.dictqueue) and (not override):
+				if timeout is None:
+					raise Full
+				endtime = time.time() + timeout
+				while key in self.dictqueue:
+					remaining = endtime - time.time()
+					if remaining <= 0.0:
+						break
+					self.not_full.wait(remaining)
 			self.dictqueue[key] = value
 			self.not_empty.notify()
 		finally:
