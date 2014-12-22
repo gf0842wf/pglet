@@ -110,6 +110,7 @@ class PPool(object):
             parent_pipe_end.put([f, args, kwargs, None])
         
     def spawn_block(self, f, *args, **kwargs):
+        # f的返回值***必须能够pickle序列化***
         return self._spawn(f, args, kwargs, True, None)
         
     def spawn_unblock(self, f, *args, **kwargs):
