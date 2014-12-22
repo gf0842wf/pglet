@@ -10,6 +10,7 @@
 - 子进程会复制主进程的进程空间， 所以要在合适的时候调用PPool实例的init函数
 - 仅在*nix运行很好
 - 手动调用PPool实例的close_pipes来关闭pipe和循环协程
+- 建议尽量使用非阻塞模式(spawn_unblock)
 
 Example
 --
