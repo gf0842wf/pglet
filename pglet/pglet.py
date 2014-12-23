@@ -13,7 +13,7 @@ import sys; sys.modules.pop("threading", None)
 from gevent import monkey; monkey.patch_all()
 from .dictqueue import DictQueue
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("pglet")
 
 def id_generator():
     i = 0
@@ -128,7 +128,7 @@ class PPool(object):
         loop(child_pipe_end)
         
     def _benchmark_join_start(self, f, ts=[]):
-        [parent_pipe_end.put([f, args, kwargs, -1]) for args, kwargs in ts]
+        [parent_pipe_end.put([f, args, None, -1]) for args in ts]
     
     def _benchmark_join_end(self):
         parent_pipe_end.put([None, None, None, -2])
