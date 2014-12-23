@@ -131,8 +131,9 @@ class PPool(object):
         loop(child_pipe_end, taskqs)
         
     def _benchmark_join_start(self, f, ts=[]):
-        parent_pipe_end = self.select_pipe_writer()
-        [parent_pipe_end.put([f, args, None, -1]) for args in ts]
+        for args in ts:
+            parent_pipe_end = self.select_pipe_writer()
+            parent_pipe_end.put([f, args, None, -1])
     
     def _benchmark_join_end(self):
         for p in self.parent_pipe_ends:
