@@ -50,7 +50,7 @@ class PPool(object):
     def foo(a):
         print a
         
-    ppool.spawn_unblock(foo, "abc")
+    ppool.spawn_sub(foo, "abc")
     
     gevent.wait()
     """
@@ -80,10 +80,16 @@ class PPool(object):
             
     def loop_get_result(self):
         """循环读取子进程返回结果"""
+        n = 0 # 用于测试性能,发布时删除
         def loop(p):
             while 1:
                 try:
                     k, v = p.get()
+                    if k == -9: # 用于测试性能,发布时删除, =-9时表示该子进程joinall结束
+                        n += 1
+                        if n == self.process_size:
+                            print "join all completed!!!"
+                        continue
                     self.results.put(k, v, override=True, timeout=None)
                 except Exception as e:
                     logger.warning(str(e))
@@ -97,15 +103,22 @@ class PPool(object):
         """子进程空间"""
         def callback(g, task_id):
             child_pipe_end.put([task_id, g.value])
+        
+        taskqs = [] # 用于测试,发布时删除
             
         def loop(child_pipe_end):
             while 1:
                 try:
                     f, args, kwargs, task_id = child_pipe_end.get()
-                    if task_id:
+                    if task_id >= 0:
                         g = gevent.spawn(f, *args, **kwargs)
                         cb = partial(callback, task_id=task_id)
                         g.link(cb)
+                    elif task_id == -1: # 用于测试性能,发布时删除, =-1时表示joinall开始
+                        taskqs.append([f, args, kwargs])
+                    elif task_id == -2: # 用于测试性能,发布时删除, =-2时表示joinall结束
+                        gevent.joinall([gevent.spawn(f, *args, **kwargs) for f, args, kwargs in taskqs])
+                        child_pipe_end.put([-9, None])
                     else:
                         gevent.spawn(f, *args, **kwargs)
                 except Exception as e:
@@ -113,6 +126,12 @@ class PPool(object):
                     break
                     
         loop(child_pipe_end)
+        
+    def _benchmark_join_start(self, f, ts=[]):
+        [parent_pipe_end.put([f, args, kwargs, -1]) for args, kwargs in ts]
+    
+    def _benchmark_join_end(self):
+        parent_pipe_end.put([None, None, None, -2])
 
     def select_pipe_writer(self,  sn=None):
         if sn is not None:
@@ -146,16 +165,17 @@ class PPool(object):
         """
         return self._spawn(f, args, kwargs, False, None)
         
-    def close_pipes(self):
+    def close(self):
         """不再使用时,必须手动调用"""
         try:
-            [g.kill() for g in self.loop_get_result_glets]
-            [p.close() for p in self.parent_pipe_ends] # 管道一端关闭即可
+            [p.terminate() for p in self.processes]          # 结束子进程
+            [g.kill() for g in self.loop_get_result_glets]   # 结束取结果的协程
+            [p.close() for p in self.parent_pipe_ends]       # 管道一端关闭即可
         except Exception as e:
             logger.warning(str(e))
         
     def __del__(self):
-        self.close_pipes()
+        self.close()
         
         
         
@@ -168,10 +188,10 @@ if __name__ == "__main__":
         ppool.init()
         print ppool.spawn(x, "abc").get()
         print ppool.spawn_sub(x, "def")
-        
+        ppool.close()
         gevent.wait()
     except KeyboardInterrupt:
-        ppool.close_pipes()
+        ppool.close()
     
 
         

@@ -9,7 +9,7 @@
 --
 - 仅在*nix系统运行很好
 - 子进程会复制主进程的进程空间， 所以要在合适的时候调用`PPool`实例的`init`函数
-- 必须手动调用`PPool`实例的`close_pipes`函数来关闭pipe和循环协程
+- 必须手动调用`PPool`实例的`close`函数来关闭pipe、子进程和循环协程
 - 如果使用`spawn`,请必须调用 `返回值.get`,否则请使用 `spawn_sub`
 
 
@@ -36,4 +36,4 @@ Example
         
         gevent.wait()                          # 主进程协程等待
     except KeyboardInterrupt:
-        ppool.close_pipes()                    # 关闭管道和循环协程
+        ppool.close()                    # 关闭管道和循环协程
