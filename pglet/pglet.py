@@ -7,6 +7,7 @@ from functools import partial
 import gevent
 import gipc
 import random
+import time
 import logging
 
 import sys; sys.modules.pop("threading", None)
@@ -81,15 +82,15 @@ class PPool(object):
             
     def loop_get_result(self):
         """循环读取子进程返回结果"""
-        n = 0 # 用于测试性能,发布时删除
+        self.n = 0 # 用于测试性能,发布时删除
         def loop(p):
             while 1:
                 try:
                     k, v = p.get()
                     if k == -9: # 用于测试性能,发布时删除, =-9时表示该子进程joinall结束
-                        n += 1
-                        if n == self.process_size:
-                            print "join all completed!!!"
+                        self.n += 1
+                        if self.n == self.process_size:
+                            print "join all completed!!!", time.time()
                         continue
                     self.results.put(k, v, override=True, timeout=None)
                 except Exception as e:
@@ -107,7 +108,7 @@ class PPool(object):
         
         taskqs = [] # 用于测试,发布时删除
             
-        def loop(child_pipe_end):
+        def loop(child_pipe_end, taskqs):
             while 1:
                 try:
                     f, args, kwargs, task_id = child_pipe_end.get()
@@ -116,9 +117,9 @@ class PPool(object):
                         cb = partial(callback, task_id=task_id)
                         g.link(cb)
                     elif task_id == -1: # 用于测试性能,发布时删除, =-1时表示joinall开始
-                        taskqs.append([f, args, kwargs])
+                        taskqs.append([f, args])
                     elif task_id == -2: # 用于测试性能,发布时删除, =-2时表示joinall结束
-                        gevent.joinall([gevent.spawn(f, *args, **kwargs) for f, args, kwargs in taskqs])
+                        gevent.joinall([gevent.spawn(f, *args) for f, args in taskqs])
                         child_pipe_end.put([-9, None])
                     else:
                         gevent.spawn(f, *args, **kwargs)
@@ -126,7 +127,7 @@ class PPool(object):
                     logger.warning(str(e))
                     break
                     
-        loop(child_pipe_end)
+        loop(child_pipe_end, taskqs)
         
     def _benchmark_join_start(self, f, ts=[]):
         parent_pipe_end = self.select_pipe_writer()
