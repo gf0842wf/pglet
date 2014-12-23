@@ -13,9 +13,8 @@ def fetch_20(url):
 ppool = PPool(2)
 ppool.init()
 
-t0 = time.time()
 ppool._benchmark_join_start(fetch_20, urls)
+print time.time()
 ppool._benchmark_join_end()
-print time.time() - t0
 
 gevent.wait()
