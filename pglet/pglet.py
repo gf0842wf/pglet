@@ -25,6 +25,18 @@ def id_generator():
         yield i
         
 
+class Delay(object):
+    """future对象: PPool的spawn返回的future对象"""
+    
+    def __init__(self, ppool, task_id):
+        self.ppool = ppool
+        self.task_id = task_id
+        
+    def get(self, block=True, timeout=None):
+        """在这里,block不能为False"""
+        return self.ppool.results.get(self.task_id, block, timeout)
+    
+    
 class PPool(object):
     """process pool + gevent spawn
     : 1.必须放在入口文件的最开始处调用PPool实例的init函数, 因为子进程会复制主进程空间(包括已有协程)
@@ -42,7 +54,7 @@ class PPool(object):
     
     gevent.wait()
     """
-
+    
     def __init__(self, process_size=1):
         """
         @param process_size: the process pool size
@@ -75,6 +87,7 @@ class PPool(object):
                     self.results.put(k, v, override=True, timeout=None)
                 except Exception as e:
                     logger.warning(str(e))
+                    break
                 
         for p in self.parent_pipe_ends:
             g = gevent.spawn(loop, p)
@@ -87,13 +100,17 @@ class PPool(object):
             
         def loop(child_pipe_end):
             while 1:
-                f, args, kwargs, task_id = child_pipe_end.get()
-                if task_id:
-                    g = gevent.spawn(f, *args, **kwargs)
-                    cb = partial(callback, task_id=task_id)
-                    g.link(cb)
-                else:
-                    gevent.spawn(f, *args, **kwargs)
+                try:
+                    f, args, kwargs, task_id = child_pipe_end.get()
+                    if task_id:
+                        g = gevent.spawn(f, *args, **kwargs)
+                        cb = partial(callback, task_id=task_id)
+                        g.link(cb)
+                    else:
+                        gevent.spawn(f, *args, **kwargs)
+                except Exception as e:
+                    logger.warning(str(e))
+                    break
                     
         loop(child_pipe_end)
 
@@ -102,31 +119,35 @@ class PPool(object):
             return self.parent_pipe_ends[sn]
         return random.choice(self.parent_pipe_ends)
         
-    def _spawn(self, f, args=tuple(), kwargs={}, block=False, timeout=None, sn=None):
+    def _spawn(self, f, args=tuple(), kwargs={}, future=False, timeout=None, sn=None):
         """和gevent.spawn的区别是,如果block=False 就不返回任何值(gevent.spawn返回greenlet),如果block=True,返回f的结果值,而不是greenlet
         @param f: func
         @param args, kwargs: f的参数, ***必须能够pickle序列化***
-        @param: block: True-等待f返回结果, False-不等待f返回结果
+        @param: future: 是否返回future对象(future.get阻塞获取结果)
         """
         parent_pipe_end = self.select_pipe_writer(sn)
-        if block:
+        if future:
             task_id = self.id_generator.next()
             parent_pipe_end.put([f, args, kwargs, task_id])
-            result = self.results.get(task_id, block, timeout)
-            return result
+            delay = Delay(self, task_id)
+            return delay
         else:
             parent_pipe_end.put([f, args, kwargs, None])
         
-    def spawn_block(self, f, *args, **kwargs):
-        """f的参数和返回值***必须能够pickle序列化***"""
+    def spawn(self, f, *args, **kwargs):
+        """f的参数和返回值***必须能够pickle序列化***
+        @return: 返回future对象,future.get()来阻塞获取结果
+        """
         return self._spawn(f, args, kwargs, True, None)
         
-    def spawn_unblock(self, f, *args, **kwargs):
-        """f的参数***必须能够pickle序列化***"""
+    def spawn_sub(self, f, *args, **kwargs):
+        """f的参数***必须能够pickle序列化***
+        @return: 无 (即:是过程sub)
+        """
         return self._spawn(f, args, kwargs, False, None)
         
     def close_pipes(self):
-        """不再使用时必须手动调用"""
+        """不再使用时,必须手动调用"""
         try:
             [g.kill() for g in self.loop_get_result_glets]
             [p.close() for p in self.parent_pipe_ends] # 管道一端关闭即可
@@ -137,6 +158,7 @@ class PPool(object):
         self.close_pipes()
         
         
+        
 if __name__ == "__main__":
     def x(a):
         return a
@@ -144,8 +166,8 @@ if __name__ == "__main__":
     try:
         ppool = PPool(2)
         ppool.init()
-        print ppool.spawn_block(x, "abc")
-        print ppool.spawn_unblock(x, "def")
+        print ppool.spawn(x, "abc").get()
+        print ppool.spawn_sub(x, "def")
         
         gevent.wait()
     except KeyboardInterrupt:
