@@ -14,6 +14,7 @@ from gevent import monkey; monkey.patch_all()
 from .dictqueue import DictQueue
 
 logger = logging.getLogger("pglet")
+logger = logging
 
 def id_generator():
     i = 0
