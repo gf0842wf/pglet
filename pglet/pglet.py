@@ -2,7 +2,6 @@
 
 """multi process and multi greenlet spawn"""
 
-from gevent.queue import Queue
 from functools import partial
 import gevent
 import gipc
@@ -34,7 +33,7 @@ class Delay(object):
         
     def get(self, block=True, timeout=None):
         """在这里,block不能为False"""
-        return self.ppool.results.get(self.task_id, block, timeout)
+        return self.ppool.results.pop(self.task_id, block, timeout)
     
     
 class PPool(object):

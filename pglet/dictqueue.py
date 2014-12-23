@@ -25,7 +25,7 @@ class DictQueue(object):
 	    self.not_empty = threading.Condition(self.mutex)
 	    self.not_full = threading.Condition(self.mutex)
 
-	def get(self, key, block=True, timeout=None):
+	def pop(self, key, block=True, timeout=None):
 		self.not_empty.acquire()
 		try:
 			if not block:
@@ -79,4 +79,4 @@ if __name__ == "__main__":
 	dq = DictQueue()
 	dq.put("k", "xxxx", override=False, timeout=10)
 	dq.put("k", "yyyy", override=False, timeout=10)
-	print dq.get("k", block=True, timeout=10)
+	print dq.pop("k", block=True, timeout=10)
