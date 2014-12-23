@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""key-value dict queue
+"""key-value thread safe (can block) dict
 	1.just can set & get
 	2.thread safe
-	3.support block get
+	3.support block get & put
 """
 
 import threading

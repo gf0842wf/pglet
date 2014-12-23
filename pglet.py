@@ -110,13 +110,15 @@ class PPool(object):
             parent_pipe_end.put([f, args, kwargs, None])
         
     def spawn_block(self, f, *args, **kwargs):
-        # f的返回值***必须能够pickle序列化***
+        """f的参数和返回值***必须能够pickle序列化***"""
         return self._spawn(f, args, kwargs, True, None)
         
     def spawn_unblock(self, f, *args, **kwargs):
+        """f的参数***必须能够pickle序列化***"""
         return self._spawn(f, args, kwargs, False, None)
         
     def close_pipes(self):
+        """不再使用时必须手动调用"""
         [g.kill() for g in self.loop_get_result_glets]
         [p.close() for p in self.parent_pipe_ends] # 管道一端关闭即可
         
