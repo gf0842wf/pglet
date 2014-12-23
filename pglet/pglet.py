@@ -7,11 +7,13 @@ from functools import partial
 import gevent
 import gipc
 import random
+import logging
 
 import sys; sys.modules.pop("threading", None)
 from gevent import monkey; monkey.patch_all()
 from .dictqueue import DictQueue
 
+logger = logging.getLogger(__name__)
 
 def id_generator():
     i = 0
@@ -62,7 +64,10 @@ class PPool(object):
             self.processes.append(p)
             #p.join()
             
-            self.loop_get_result()
+            try:
+                self.loop_get_result()
+            except Exception as e:
+                logger.warning(str(e))
             
     def loop_get_result(self):
         """循环读取子进程返回结果"""
@@ -70,7 +75,6 @@ class PPool(object):
             while 1:
                 k, v = p.get()
                 self.results.put(k, v, override=True, timeout=None)
-#                 self.results[k] = self.results[k].put_nowait(v)
                 
         for p in self.parent_pipe_ends:
             g = gevent.spawn(loop, p)
@@ -107,11 +111,8 @@ class PPool(object):
         parent_pipe_end = self.select_pipe_writer(sn)
         if block:
             task_id = self.id_generator.next()
-#             self.results[task_id] = Queue(maxsize=1)
             parent_pipe_end.put([f, args, kwargs, task_id])
             result = self.results.get(task_id, block, timeout)
-#             result = self.results[task_id].get()
-#             del self.results[task_id]
             return result
         else:
             parent_pipe_end.put([f, args, kwargs, None])
@@ -126,8 +127,11 @@ class PPool(object):
         
     def close_pipes(self):
         """不再使用时必须手动调用"""
-        [g.kill() for g in self.loop_get_result_glets]
-        [p.close() for p in self.parent_pipe_ends] # 管道一端关闭即可
+        try:
+            [g.kill() for g in self.loop_get_result_glets]
+            [p.close() for p in self.parent_pipe_ends] # 管道一端关闭即可
+        except Exception as e:
+            logger.warning(str(e))
         
     def __del__(self):
         self.close_pipes()
