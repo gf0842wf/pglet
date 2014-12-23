@@ -15,8 +15,9 @@
 
 Example
 --
-
+    # -*- coding: utf-8 -*-
 	from pglet import PPool
+	import gevent
 	
     def foo(arg):
         return arg
