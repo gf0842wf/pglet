@@ -18,6 +18,15 @@
 - `spawn`: 返回`future`对象,参数和返回值必须能够pickle序列化
 - `spawn_sub`: 不返回值,参数必须能够pickle序列化
 
+
+benchmark: (因为没有实现join方法,所以测试数据是debug时期内嵌在源码中,然后被删除了)
+--
+    1w个本地http get(urllib2)
+          普通协程:      8.83s
+    pglet 2核:   4.21s
+    pglet 3核:   3.95s
+
+
 Example
 --
     # -*- coding: utf-8 -*-
