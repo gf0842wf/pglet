@@ -7,7 +7,6 @@ from functools import partial
 import gevent
 import gipc
 import random
-import time
 import logging
 
 import sys; sys.modules.pop("threading", None)
@@ -15,7 +14,6 @@ from gevent import monkey; monkey.patch_all()
 from .dictqueue import DictQueue
 
 logger = logging.getLogger("pglet")
-logger = logging
 
 def id_generator():
     i = 0
@@ -82,16 +80,10 @@ class PPool(object):
             
     def loop_get_result(self):
         """循环读取子进程返回结果"""
-        self.n = 0 # 用于测试性能,发布时删除
         def loop(p):
             while 1:
                 try:
                     k, v = p.get()
-                    if k == -9: # 用于测试性能,发布时删除, =-9时表示该子进程joinall结束
-                        self.n += 1
-                        if self.n == self.process_size:
-                            print "join all completed!!!", time.time()
-                        continue
                     self.results.put(k, v, override=True, timeout=None)
                 except Exception as e:
                     logger.warning(str(e))
@@ -106,9 +98,7 @@ class PPool(object):
         def callback(g, task_id):
             child_pipe_end.put([task_id, g.value])
         
-        taskqs = [] # 用于测试,发布时删除
-            
-        def loop(child_pipe_end, taskqs):
+        def loop(child_pipe_end):
             while 1:
                 try:
                     f, args, kwargs, task_id = child_pipe_end.get()
@@ -116,28 +106,13 @@ class PPool(object):
                         g = gevent.spawn(f, *args, **kwargs)
                         cb = partial(callback, task_id=task_id)
                         g.link(cb)
-                    elif task_id == -1: # 用于测试性能,发布时删除, =-1时表示joinall开始
-                        taskqs.append([f, args])
-                    elif task_id == -2: # 用于测试性能,发布时删除, =-2时表示joinall结束
-                        print "taskqs:", len(taskqs)
-                        gevent.joinall([gevent.spawn(f, args) for f, args in taskqs])
-                        child_pipe_end.put([-9, None])
                     else:
                         gevent.spawn(f, *args, **kwargs)
                 except Exception as e:
                     logger.warning(str(e))
                     break
                     
-        loop(child_pipe_end, taskqs)
-        
-    def _benchmark_join_start(self, f, ts=[]):
-        for args in ts:
-            parent_pipe_end = self.select_pipe_writer()
-            parent_pipe_end.put([f, args, None, -1])
-    
-    def _benchmark_join_end(self):
-        for p in self.parent_pipe_ends:
-            p.put([None, None, None, -2])
+        loop(child_pipe_end)
 
     def select_pipe_writer(self,  sn=None):
         if sn is not None:
@@ -182,22 +157,4 @@ class PPool(object):
         
     def __del__(self):
         self.close()
-        
-        
-        
-if __name__ == "__main__":
-    def x(a):
-        return a
-        
-    try:
-        ppool = PPool(2)
-        ppool.init()
-        print ppool.spawn(x, "abc").get()
-        print ppool.spawn_sub(x, "def")
-        ppool.close()
-        gevent.wait()
-    except KeyboardInterrupt:
-        ppool.close()
-    
-
         
