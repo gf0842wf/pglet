@@ -119,7 +119,7 @@ class PPool(object):
                     elif task_id == -1: # 用于测试性能,发布时删除, =-1时表示joinall开始
                         taskqs.append([f, args])
                     elif task_id == -2: # 用于测试性能,发布时删除, =-2时表示joinall结束
-                        gevent.joinall([gevent.spawn(f, *args) for f, args in taskqs])
+                        gevent.joinall([gevent.spawn(f, args) for f, args in taskqs])
                         child_pipe_end.put([-9, None])
                     else:
                         gevent.spawn(f, *args, **kwargs)
