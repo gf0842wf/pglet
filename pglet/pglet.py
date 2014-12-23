@@ -64,17 +64,17 @@ class PPool(object):
             self.processes.append(p)
             #p.join()
             
-            try:
-                self.loop_get_result()
-            except Exception as e:
-                logger.warning(str(e))
+            self.loop_get_result()
             
     def loop_get_result(self):
         """循环读取子进程返回结果"""
         def loop(p):
             while 1:
-                k, v = p.get()
-                self.results.put(k, v, override=True, timeout=None)
+                try:
+                    k, v = p.get()
+                    self.results.put(k, v, override=True, timeout=None)
+                except Exception as e:
+                    logger.warning(str(e))
                 
         for p in self.parent_pipe_ends:
             g = gevent.spawn(loop, p)
