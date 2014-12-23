@@ -8,6 +8,11 @@ import gevent
 import gipc
 import random
 
+import sys; sys.modules.pop("threading", None)
+from gevent import monkey; monkey.patch_all()
+from .dictqueue import DictQueue
+
+
 def id_generator():
     i = 0
     wall = 1 << 31
@@ -45,7 +50,7 @@ class PPool(object):
         self.parent_pipe_ends = []         # 存放process_size个双向pipe的父进程端
         self.child_pipe_ends = []          # 存放process_size个双向pipe的子进程端
         self.processes = []                # 存放process_size个子进程
-        self.results = {}                  # 在阻塞模式下存放结果, {task_id:Queue(maxsize=1)}
+        self.results = DictQueue()         # 在阻塞模式下存放结果, {task_id:DictQueue()}
         self.loop_get_result_glets = []    # 存放 loop_get_result 产生的process_size个greenlet
         
     def init(self):
@@ -64,7 +69,8 @@ class PPool(object):
         def loop(p):
             while 1:
                 k, v = p.get()
-                self.results[k] = self.results[k].put_nowait(v)
+                self.results.put(k, v, override=True, timeout=None)
+#                 self.results[k] = self.results[k].put_nowait(v)
                 
         for p in self.parent_pipe_ends:
             g = gevent.spawn(loop, p)
@@ -92,7 +98,7 @@ class PPool(object):
             return self.parent_pipe_ends[sn]
         return random.choice(self.parent_pipe_ends)
         
-    def _spawn(self, f, args=tuple(), kwargs={}, block=False, sn=None):
+    def _spawn(self, f, args=tuple(), kwargs={}, block=False, timeout=None, sn=None):
         """和gevent.spawn的区别是,如果block=False 就不返回任何值(gevent.spawn返回greenlet),如果block=True,返回f的结果值,而不是greenlet
         @param f: func
         @param args, kwargs: f的参数, ***必须能够pickle序列化***
@@ -101,10 +107,11 @@ class PPool(object):
         parent_pipe_end = self.select_pipe_writer(sn)
         if block:
             task_id = self.id_generator.next()
-            self.results[task_id] = Queue(maxsize=1)
+#             self.results[task_id] = Queue(maxsize=1)
             parent_pipe_end.put([f, args, kwargs, task_id])
-            result = self.results[task_id].get()
-            del self.results[task_id]
+            result = self.results.get(task_id, block, timeout)
+#             result = self.results[task_id].get()
+#             del self.results[task_id]
             return result
         else:
             parent_pipe_end.put([f, args, kwargs, None])
