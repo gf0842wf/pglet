@@ -10,7 +10,7 @@ urls = ["http://www.baidu.com"] * 100
 def fetch_20(url):
     return urllib2.urlopen(url).read(20)
     
-ppool = PPool(2)
+ppool = PPool(4)
 ppool.init()
 
 ppool._benchmark_join_start(fetch_20, urls)
