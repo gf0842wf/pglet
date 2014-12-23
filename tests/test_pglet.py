@@ -13,7 +13,7 @@ def task_func(x):
     return x
     
     
-class PgletTestCase(unittest.TestCase):
+class PPoolTestCase(unittest.TestCase):
         
     def setUp(self):
         logging.basicConfig(level=logging.DEBUG, format='[%(asctime)-15s %(levelname)s:%(module)s] %(message)s')
